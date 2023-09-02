@@ -121,8 +121,8 @@ user_input = st.text_input("Please enter the idea/topic for the article you want
         with col1:
             prompt_template = f"
 system_message = "You are an expert writing assistant specialized in writing blogs. Do not pretend to be 'User'. You only respond once as 'Assistant'."
- so write an article on the given topic: {user_input}. The article should be under 800 words."
-            llm_chain = load_llm(max_tokens=800, prompt_template=prompt_template)
+ so write an article on the given topic: {user_input}. The article should be under 300 words."
+            llm_chain = load_llm(max_tokens=500, prompt_template=prompt_template)
             result = llm_chain(user_input)
             if result:
                 st.write(result)
