@@ -6,12 +6,12 @@ import requests
 # Function to fetch photo from Pexels
 def fetch_photo(query):
     # Placeholder for your Pexels API key
-    api_key = 'YOUR_API_KEY'
+    api_key = '9ly611qdSF70tNVdPGZpZHPsscis7RCOsMmEg4fZFWTSs2mz3buhWZMk'
     
     # Endpoint and headers for Pexels API
     url = 'https://api.pexels.com/v1/search'
     headers = {
-        'Authorization': api_key,
+        '9ly611qdSF70tNVdPGZpZHPsscis7RCOsMmEg4fZFWTSs2mz3buhWZMk': api_key,
     }
     params = {
         'query': query,
