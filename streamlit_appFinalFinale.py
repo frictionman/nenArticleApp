@@ -52,7 +52,8 @@ def generate_article(prompt_input, llm_model):
     string_dialogue += f"User: Write an article about {prompt_input}\n\n"
     generator_output = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
     response = next(generator_output, {})
-    return response if response else ""
+    return response.get('content', "") if isinstance(response, dict) else response
+
 
 
 
