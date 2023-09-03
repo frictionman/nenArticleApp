@@ -33,10 +33,12 @@ def main():
     image_input = st.text_input("Please enter the topic for the image you want to fetch!")
 
     result = ""  # Initialize the result variable
+    image_url = None  # Initialize the image_url variable
+    image_stream = None  # Initialize the image_stream variable
 
     if user_input and image_input:
         col1, col2, col3 = st.columns([1,2,1])
-
+        
         with col1:
             st.subheader("Generated Content by Llama 2")
             try:
