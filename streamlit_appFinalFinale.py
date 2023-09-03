@@ -32,6 +32,8 @@ def main():
     user_input = st.text_input("Please enter the idea/topic for the article you want to generate!")
     image_input = st.text_input("Please enter the topic for the image you want to fetch!")
 
+    result = ""  # Initialize the result variable
+
     if user_input and image_input:
         col1, col2, col3 = st.columns([1,2,1])
 
