@@ -4,4 +4,6 @@ langchain
 requests
 Pillow
 streamlit
-python-docx==0.8.11
+python-docx==0.8.11 
+ctransformers
+
