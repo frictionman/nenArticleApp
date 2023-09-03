@@ -10,8 +10,8 @@ from PIL import Image
 import requests
 import replicate
 
+# Loading the model
 def load_llm(max_tokens, prompt_template):
-    # Load the model using the correct identifier
     llm_model_identifier = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
     
     llm = CTransformers(
@@ -29,7 +29,6 @@ def load_llm(max_tokens, prompt_template):
 
 def get_src_original_url(query):
     url = 'https://api.pexels.com/v1/search'
-    # Use Streamlit's secrets for the API key
     headers = {
         'Authorization': st.secrets["PEXELS_API_KEY"],
     }
@@ -44,6 +43,20 @@ def get_src_original_url(query):
         if photos:
             return photos[0]['src']['original']
     return None
+
+def save_image_from_url(url, filename="temp_image.jpg"):
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(filename, 'wb') as file:
+        for chunk in response.iter_content(8192):
+            file.write(chunk)
+
+def create_word_docx(user_input, paragraph, image_filename):
+    doc = Document()
+    doc.add_heading(user_input, level=1)
+    doc.add_paragraph(paragraph)
+    doc.add_picture(image_filename, width=Inches(4))
+    return doc
 
 def main():
     st.title("Article Generator App using Llama 2")
@@ -71,7 +84,31 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred while generating the article: {e}")
 
-        # ... rest of the code ...
+        with col2:
+            st.subheader("Fetched Image")
+            image_url = get_src_original_url(image_input)
+            if image_url:
+                save_image_from_url(image_url)
+                st.image(image_url)
+            else:
+                st.error("Couldn't fetch the image for the given topic.")
+
+        with col3:
+            st.subheader("Final Article to Download")
+            if result and image_url:
+                image_filename = "temp_image.jpg"
+                doc = create_word_docx(user_input, result, image_filename)
+                doc_buffer = io.BytesIO()
+                doc.save(doc_buffer)
+                doc_buffer.seek(0)
+                st.download_button(
+                    label='Download Word Document',
+                    data=doc_buffer,
+                    file_name='document.docx',
+                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                )
+            else:
+                st.error("Couldn't generate the Word document. Ensure both the article and image are generated successfully.")
 
 if __name__ == "__main__":
     main()
