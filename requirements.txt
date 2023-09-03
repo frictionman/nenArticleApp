@@ -6,4 +6,4 @@ Pillow
 streamlit
 python-docx==0.8.11 
 ctransformers==0.2.26
-
+replicate
