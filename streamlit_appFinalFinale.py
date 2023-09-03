@@ -11,22 +11,18 @@ import requests
 import replicate
 
 # Loading the model
-def load_llm(max_tokens, prompt_template):
-    llm_model_identifier = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+def generate_llama2_response(prompt_input):
+    string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
+    for dict_message in st.session_state.messages:
+        if dict_message["role"] == "user":
+            string_dialogue += "User: " + dict_message["content"] + "\n\n"
+        else:
+            string_dialogue += "Assistant: " + dict_message["content"] + "\n\n"
+    output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5', 
+                           input={"prompt": f"{string_dialogue} {prompt_input} Assistant: ",
+                                  "temperature":temperature, "top_p":top_p, "max_length":max_length, "repetition_penalty":1})
+    return output
     
-    llm = CTransformers(
-        model=llm_model_identifier,
-        model_type="llama",
-        max_new_tokens=max_tokens,
-        temperature=0.7
-    )
-    
-    llm_chain = LLMChain(
-        llm=llm,
-        prompt=PromptTemplate.from_template(prompt_template)
-    )
-    return llm_chain
-
 def get_src_original_url(query):
     url = 'https://api.pexels.com/v1/search'
     headers = {
