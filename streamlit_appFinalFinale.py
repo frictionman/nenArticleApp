@@ -1,18 +1,11 @@
 import streamlit as st
 import os
-import replicate
 from docx import Document
 from docx.shared import Inches
+import io
 import requests
+import replicate
 from io import BytesIO
-
-# Set the page config
-st.set_page_config(
-    page_title="AI Article Generator",
-    page_icon="✍️",
-    layout="centered",
-    initial_sidebar_state="expanded",
-)
 
 # This function will not be cached and retrieves the API token
 def get_replicate_api():
@@ -25,22 +18,30 @@ def get_replicate_api():
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def load_llm(replicate_api):
     os.environ['REPLICATE_API_TOKEN'] = replicate_api
-
     selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
     if selected_model == 'Llama2-7B':
         llm = 'a16z-infra/llama7b-v2-chat:4f0a4744c7295c024a1de15e1a63c880d3da035fa1f49bfd344fe076074c8eea'
     elif selected_model == 'Llama2-13B':
         llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
-
     return llm
 
-# In the main function
-def main():
-    replicate_api = get_replicate_api()  # Get the API token
-    llm_model = load_llm(replicate_api)  # Load the model with the token
-
-    # ... rest of the code
-
+# Fetch image from Pexels based on user input
+def get_image_url(query):
+    url = 'https://api.pexels.com/v1/search'
+    headers = {
+        'Authorization': st.secrets["PEXELS_API_KEY"],
+    }
+    params = {
+        'query': query,
+        'per_page': 1,
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        photos = data.get('photos', [])
+        if photos:
+            return photos[0]['src']['original']
+    return None
 
 # Function to generate the article
 def generate_article(prompt_input, llm_model):
@@ -53,12 +54,12 @@ def generate_article(prompt_input, llm_model):
 # Main function of the app
 def main():
     st.title("AI Article Generator 🤖✍️")
-    
-    # Load the LLM model
-    llm_model = load_llm()
+    replicate_api = get_replicate_api()  # Get the API token
+    llm_model = load_llm(replicate_api)  # Load the model with the token
 
-    # Text input for the article topic
+    # Text input for the article topic and image
     topic = st.text_input("Enter the topic for the article:")
+    image_topic = st.text_input("Enter the topic for the image:")
 
     # Generate article button
     if st.button("Generate Article"):
@@ -73,26 +74,31 @@ def main():
     # Download article as a Word document with an image
     if st.button("Download Article as Word Document"):
         try:
-            # Create a new Word document
-            doc = Document()
-            doc.add_heading(f'Article on {topic}', level=1)
+            image_url = get_image_url(image_topic)
+            if image_url:
+                response = requests.get(image_url)
+                image_stream = BytesIO(response.content)
 
-            # Add the generated article to the document
-            doc.add_paragraph(article)
+                # Create a new Word document
+                doc = Document()
+                doc.add_heading(f'Article on {topic}', level=1)
 
-            # Add an image to the document
-            image_url = "https://source.unsplash.com/1600x900/?nature,water"
-            response = requests.get(image_url)
-            image_stream = BytesIO(response.content)
-            doc.add_picture(image_stream, width=Inches(6.0))
+                # Add the generated article to the document
+                doc.add_paragraph(article)
 
-            # Save the document
-            doc_path = "/mnt/data/article.docx"
-            doc.save(doc_path)
+                # Add the fetched image to the document
+                doc.add_picture(image_stream, width=Inches(6.0))
 
-            # Provide the document for download
-            st.success(f"Article successfully saved as Word document!")
-            st.markdown(f"[Click here to download](/mnt/data/article.docx)")
+                # Save the document
+                doc_path = "/mnt/data/article.docx"
+                doc.save(doc_path)
+
+                # Provide the document for download
+                st.success(f"Article successfully saved as Word document!")
+                st.markdown(f"[Click here to download](sandbox:/mnt/data/article.docx)")
+
+            else:
+                st.error("Couldn't fetch the image for the given topic.")
 
         except Exception as e:
             st.error(f"Couldn't generate the Word document. Error: {e}")
