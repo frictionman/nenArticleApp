@@ -1,0 +1,7 @@
+
+langchain
+
+requests
+Pillow
+streamlit
+docx
