@@ -1,119 +1,90 @@
-from langchain.llms import CTransformers
-from langchain.chains import LLMChain
-from langchain import PromptTemplate
-import streamlit as st 
+import streamlit as st
 import os
+import replicate
 from docx import Document
 from docx.shared import Inches
-import io
-from PIL import Image
 import requests
-import replicate
+from io import BytesIO
 
-def load_llm(max_tokens, prompt_template):
-    # Using the correct model identifier from the article
-    llm_model_identifier = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+# Set the page config
+st.set_page_config(
+    page_title="AI Article Generator",
+    page_icon="✍️",
+    layout="centered",
+    initial_sidebar_state="expanded",
+)
+
+# Load the LLM model
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def load_llm():
+    if 'REPLICATE_API_TOKEN' in st.secrets:
+        replicate_api = st.secrets['REPLICATE_API_TOKEN']
+    else:
+        replicate_api = st.text_input('Enter Replicate API token:', type='password')
+    os.environ['REPLICATE_API_TOKEN'] = replicate_api
+
+    selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
+    if selected_model == 'Llama2-7B':
+        llm = 'a16z-infra/llama7b-v2-chat:4f0a4744c7295c024a1de15e1a63c880d3da035fa1f49bfd344fe076074c8eea'
+    elif selected_model == 'Llama2-13B':
+        llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+
+    return llm
+
+# Function to generate the article
+def generate_article(prompt_input, llm_model):
+    string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
+    string_dialogue += f"User: Write an article about {prompt_input}\n\n"
+    response = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
     
-    llm = CTransformers(
-        model=llm_model_identifier,
-        model_type="llama",
-        max_new_tokens=max_tokens,
-        temperature=0.7
-    )
-    
-    llm_chain = LLMChain(
-        llm=llm,
-        prompt=PromptTemplate.from_template(prompt_template)
-    )
-    
-    return llm_chain
+    return response.get('content', "")
 
-def get_src_original_url(query):
-    url = 'https://api.pexels.com/v1/search'
-    headers = {
-        'Authorization': st.secrets["PEXELS_API_KEY"],
-    }
-    params = {
-        'query': query,
-        'per_page': 1,
-    }
-    
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        photos = data.get('photos', [])
-        if photos:
-            return photos[0]['src']['original']
-    return None
-
-def save_image_from_url(url, filename="temp_image.jpg"):
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    with open(filename, 'wb') as file:
-        for chunk in response.iter_content(8192):
-            file.write(chunk)
-
-def create_word_docx(user_input, paragraph, image_filename):
-    doc = Document()
-    doc.add_heading(user_input, level=1)
-    doc.add_paragraph(paragraph)
-    doc.add_picture(image_filename, width=Inches(4))
-    return doc
-
+# Main function of the app
 def main():
-    st.title("Article Generator App using Llama 2")
+    st.title("AI Article Generator 🤖✍️")
     
-    user_input = st.text_input("Please enter the idea/topic for the article you want to generate!")
-    image_input = st.text_input("Please enter the topic for the image you want to fetch!")
-    result = ""
-    image_url = ""
+    # Load the LLM model
+    llm_model = load_llm()
+
+    # Text input for the article topic
+    topic = st.text_input("Enter the topic for the article:")
+
+    # Generate article button
+    if st.button("Generate Article"):
+        with st.spinner("Generating article..."):
+            article = generate_article(topic, llm_model)
+            if article:
+                st.subheader(f"Article on {topic}")
+                st.write(article)
+            else:
+                st.error("An error occurred while generating the article.")
     
-    if user_input and image_input:
-        col1, col2, col3 = st.columns([1,2,1])
+    # Download article as a Word document with an image
+    if st.button("Download Article as Word Document"):
+        try:
+            # Create a new Word document
+            doc = Document()
+            doc.add_heading(f'Article on {topic}', level=1)
 
-        # Article Generation
-        with col1:
-            st.subheader("Generated Content by Llama 2")
-            prompt_template = "You are a digital marketing and SEO expert and your task is to write article so write an article on the given topic: {user_input}. The article must be under 800 words. The article should be be lengthy."
-            
-            try:
-                llm_chain = load_llm(max_tokens=800, prompt_template=prompt_template)
-                generator_output = replicate.run(llm_chain, input={"prompt": user_input})
-                result = next(generator_output, {}).get('content', "")
-                st.write(result)
-            except Exception as e:
-                st.error(f"An error occurred while generating the article: {e}")
+            # Add the generated article to the document
+            doc.add_paragraph(article)
 
-        # Image Fetching
-        with col2:
-            st.subheader("Fetched Image")
-            try:
-                image_url = get_src_original_url(image_input)
-                if image_url:
-                    save_image_from_url(image_url)
-                    st.image(image_url)
-            except Exception as e:
-                st.error(f"An error occurred while fetching the image: {e}")
+            # Add an image to the document
+            image_url = "https://source.unsplash.com/1600x900/?nature,water"
+            response = requests.get(image_url)
+            image_stream = BytesIO(response.content)
+            doc.add_picture(image_stream, width=Inches(6.0))
 
-        # Word Document Generation
-        with col3:
-            st.subheader("Final Article to Download")
-            try:
-                if result and image_url:
-                    doc = create_word_docx(user_input, result, "temp_image.jpg")
-                    doc_buffer = io.BytesIO()
-                    doc.save(doc_buffer)
-                    doc_buffer.seek(0)
-                    st.download_button(
-                        label='Download Word Document',
-                        data=doc_buffer,
-                        file_name='document.docx',
-                        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                    )
-                else:
-                    st.warning("Ensure both the article and image are generated successfully.")
-            except Exception as e:
-                st.error(f"Couldn't generate the Word document. {e}")
+            # Save the document
+            doc_path = "/mnt/data/article.docx"
+            doc.save(doc_path)
+
+            # Provide the document for download
+            st.success(f"Article successfully saved as Word document!")
+            st.markdown(f"[Click here to download](/mnt/data/article.docx)")
+
+        except Exception as e:
+            st.error(f"Couldn't generate the Word document. Error: {e}")
 
 if __name__ == "__main__":
     main()
