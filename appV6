@@ -1,0 +1,63 @@
+# ... (other imports)
+from PIL import Image
+
+# ... (other functions)
+
+def get_src_original_url(query):
+    url = 'https://api.pexels.com/v1/search'
+    headers = {
+        'Authorization': st.secrets["PEXELS_API_KEY"],
+    }
+    params = {
+        'query': query,
+        'per_page': 1,
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        photos = data.get('photos', [])
+        if photos:
+            return photos[0]['src']['original']
+    return None
+
+def create_word_docx(user_input, paragraph, image_path=None):
+    doc = Document()
+    doc.add_heading(user_input, level=1)
+    doc.add_paragraph(paragraph)
+    if image_path:
+        doc.add_picture(image_path, width=Inches(4))
+    doc_buffer = io.BytesIO()
+    doc.save(doc_buffer)
+    doc_buffer.seek(0)
+    return doc_buffer
+
+def main():
+    # ... (existing code)
+    
+    if len(user_input) > 0 and len(image_input) > 0:
+        # ... (existing code)
+        
+        with col2:
+            st.subheader("Fetched Image")
+            image_url = get_src_original_url(image_input)
+            if image_url:
+                image_path = "temp_image.jpg"
+                img_data = requests.get(image_url).content
+                with open(image_path, 'wb') as handler:
+                    handler.write(img_data)
+                st.image(image_path)
+                
+                doc_buffer = create_word_docx(user_input, result, image_path)
+                st.download_button(
+                    label='Download Word Document',
+                    data=doc_buffer,
+                    file_name='document.docx', 
+                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                )
+            else:
+                st.error("Couldn't fetch the image for the given topic.")
+                
+    # ... (existing code)
+
+if __name__ == "__main__":
+    main()
