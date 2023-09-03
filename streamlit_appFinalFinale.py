@@ -47,9 +47,10 @@ def get_image_url(query):
 def generate_article(prompt_input, llm_model):
     string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
     string_dialogue += f"User: Write an article about {prompt_input}\n\n"
-    response = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
-    
+    generator_output = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
+    response = next(generator_output, {})
     return response.get('content', "")
+
 
 # Main function of the app
 def main():
