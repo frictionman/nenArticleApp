@@ -17,14 +17,16 @@ def get_replicate_api():
 # This function will be cached and loads the LLM model
 #@st.cache(allow_output_mutation=True, suppress_st_warning=True)
 @st.cache_data
-def load_llm(replicate_api):
+def load_llm(replicate_api, selected_model):
     os.environ['REPLICATE_API_TOKEN'] = replicate_api
-    selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
+
     if selected_model == 'Llama2-7B':
         llm = 'a16z-infra/llama7b-v2-chat:4f0a4744c7295c024a1de15e1a63c880d3da035fa1f49bfd344fe076074c8eea'
     elif selected_model == 'Llama2-13B':
         llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+
     return llm
+
 
 # Fetch image from Pexels based on user input
 def get_image_url(query):
@@ -56,9 +58,12 @@ def generate_article(prompt_input, llm_model):
 
 # Main function of the app
 def main():
-    st.title("AI Article Generator 🤖✍️")
     replicate_api = get_replicate_api()  # Get the API token
-    llm_model = load_llm(replicate_api)  # Load the model with the token
+
+    # Get the selected model using st.selectbox
+    selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
+    
+    llm_model = load_llm(replicate_api, selected_model)  # Load the model with the token and selected model
 
     # Text input for the article topic and image
     topic = st.text_input("Enter the topic for the article:")
