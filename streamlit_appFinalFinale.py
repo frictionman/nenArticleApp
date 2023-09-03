@@ -15,7 +15,8 @@ def get_replicate_api():
         return st.text_input('Enter Replicate API token:', type='password')
 
 # This function will be cached and loads the LLM model
-@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+#@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+@st.cache_data
 def load_llm(replicate_api):
     os.environ['REPLICATE_API_TOKEN'] = replicate_api
     selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
@@ -49,7 +50,8 @@ def generate_article(prompt_input, llm_model):
     string_dialogue += f"User: Write an article about {prompt_input}\n\n"
     generator_output = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
     response = next(generator_output, {})
-    return response.get('content', "")
+    return response if response else ""
+
 
 
 # Main function of the app
