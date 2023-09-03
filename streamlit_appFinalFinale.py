@@ -1,90 +1,89 @@
 import streamlit as st
-import os
 import replicate
-from docx import Document
-from docx.shared import Inches
-import requests
-from io import BytesIO
+import os
 
-# Set the page config
-st.set_page_config(
-    page_title="AI Article Generator",
-    page_icon="✍️",
-    layout="centered",
-    initial_sidebar_state="expanded",
-)
+# App title
+st.set_page_config(page_title="🦙💬 Llama 2 Chatbot")
 
-# Load the LLM model
-@st.cache(allow_output_mutation=True, suppress_st_warning=True)
-def load_llm():
+# Function to retrieve the API token (not cached)
+def get_replicate_api():
     if 'REPLICATE_API_TOKEN' in st.secrets:
-        replicate_api = st.secrets['REPLICATE_API_TOKEN']
+        return st.secrets['REPLICATE_API_TOKEN']
     else:
-        replicate_api = st.text_input('Enter Replicate API token:', type='password')
+        return st.text_input('Enter Replicate API token:', type='password')
+
+# Cached function to load the LLM model
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def load_llm(replicate_api):
     os.environ['REPLICATE_API_TOKEN'] = replicate_api
 
-    selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
-    if selected_model == 'Llama2-7B':
-        llm = 'a16z-infra/llama7b-v2-chat:4f0a4744c7295c024a1de15e1a63c880d3da035fa1f49bfd344fe076074c8eea'
-    elif selected_model == 'Llama2-13B':
-        llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+    with st.sidebar:
+        st.title('🦙💬 Llama 2 Chatbot')
 
-    return llm
+        # Model and parameters selection
+        st.subheader('Models and parameters')
+        selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
+        if selected_model == 'Llama2-7B':
+            llm = 'a16z-infra/llama7b-v2-chat:4f0a4744c7295c024a1de15e1a63c880d3da035fa1f49bfd344fe076074c8eea'
+        elif selected_model == 'Llama2-13B':
+            llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
+        
+        temperature = st.sidebar.slider('temperature', min_value=0.01, max_value=5.0, value=0.1, step=0.01)
+        top_p = st.sidebar.slider('top_p', min_value=0.01, max_value=1.0, value=0.9, step=0.01)
+        max_length = st.sidebar.slider('max_length', min_value=32, max_value=128, value=120, step=8)
+        st.markdown('📖 Learn how to build this app in this [blog](https://blog.streamlit.io/how-to-build-a-llama-2-chatbot/)!')
 
-# Function to generate the article
-def generate_article(prompt_input, llm_model):
+    return llm, temperature, top_p, max_length
+
+# Store LLM generated responses
+if "messages" not in st.session_state.keys():
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
+
+# Display or clear chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+def clear_chat_history():
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
+st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
+
+# Function for generating LLaMA2 response. Refactored from https://github.com/a16z-infra/llama2-chatbot
+def generate_llama2_response(prompt_input, llm, temperature, top_p, max_length):
     string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
-    string_dialogue += f"User: Write an article about {prompt_input}\n\n"
-    response = replicate.run(llm_model, input={"prompt": f"{string_dialogue} Assistant: "})
-    
-    return response.get('content', "")
+    for dict_message in st.session_state.messages:
+        if dict_message["role"] == "user":
+            string_dialogue += "User: " + dict_message["content"] + "\n\n"
+        else:
+            string_dialogue += "Assistant: " + dict_message["content"] + "\n\n"
+    output = replicate.run(llm, 
+                           input={"prompt": f"{string_dialogue} {prompt_input} Assistant: ",
+                                  "temperature":temperature, "top_p":top_p, "max_length":max_length, "repetition_penalty":1})
+    return output
 
-# Main function of the app
 def main():
-    st.title("AI Article Generator 🤖✍️")
-    
-    # Load the LLM model
-    llm_model = load_llm()
+    replicate_api = get_replicate_api()  # Get the API token
+    llm_model, temperature, top_p, max_length = load_llm(replicate_api)  # Load the model and parameters
 
-    # Text input for the article topic
-    topic = st.text_input("Enter the topic for the article:")
+    # User-provided prompt
+    if prompt := st.chat_input(disabled=not replicate_api):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
 
-    # Generate article button
-    if st.button("Generate Article"):
-        with st.spinner("Generating article..."):
-            article = generate_article(topic, llm_model)
-            if article:
-                st.subheader(f"Article on {topic}")
-                st.write(article)
-            else:
-                st.error("An error occurred while generating the article.")
-    
-    # Download article as a Word document with an image
-    if st.button("Download Article as Word Document"):
-        try:
-            # Create a new Word document
-            doc = Document()
-            doc.add_heading(f'Article on {topic}', level=1)
+    # Generate a new response if last message is not from assistant
+    if st.session_state.messages[-1]["role"] != "assistant":
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = generate_llama2_response(prompt, llm_model, temperature, top_p, max_length)
+                placeholder = st.empty()
+                full_response = ''
+                for item in response:
+                    full_response += item
+                    placeholder.markdown(full_response)
+                placeholder.markdown(full_response)
+        message = {"role": "assistant", "content": full_response}
+        st.session_state.messages.append(message)
 
-            # Add the generated article to the document
-            doc.add_paragraph(article)
-
-            # Add an image to the document
-            image_url = "https://source.unsplash.com/1600x900/?nature,water"
-            response = requests.get(image_url)
-            image_stream = BytesIO(response.content)
-            doc.add_picture(image_stream, width=Inches(6.0))
-
-            # Save the document
-            doc_path = "/mnt/data/article.docx"
-            doc.save(doc_path)
-
-            # Provide the document for download
-            st.success(f"Article successfully saved as Word document!")
-            st.markdown(f"[Click here to download](/mnt/data/article.docx)")
-
-        except Exception as e:
-            st.error(f"Couldn't generate the Word document. Error: {e}")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
