@@ -65,6 +65,7 @@ def main():
     selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
     
     llm_model = load_llm(replicate_api, selected_model)  # Load the model with the token and selected model
+    article = ""
 
     # Text input for the article topic and image
     topic = st.text_input("Enter the topic for the article:")
