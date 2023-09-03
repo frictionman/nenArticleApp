@@ -14,13 +14,16 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Load the LLM model
-@st.cache(allow_output_mutation=True, suppress_st_warning=True)
-def load_llm():
+# This function will not be cached and retrieves the API token
+def get_replicate_api():
     if 'REPLICATE_API_TOKEN' in st.secrets:
-        replicate_api = st.secrets['REPLICATE_API_TOKEN']
+        return st.secrets['REPLICATE_API_TOKEN']
     else:
-        replicate_api = st.text_input('Enter Replicate API token:', type='password')
+        return st.text_input('Enter Replicate API token:', type='password')
+
+# This function will be cached and loads the LLM model
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def load_llm(replicate_api):
     os.environ['REPLICATE_API_TOKEN'] = replicate_api
 
     selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B'], key='selected_model')
@@ -30,6 +33,14 @@ def load_llm():
         llm = 'a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5'
 
     return llm
+
+# In the main function
+def main():
+    replicate_api = get_replicate_api()  # Get the API token
+    llm_model = load_llm(replicate_api)  # Load the model with the token
+
+    # ... rest of the code
+
 
 # Function to generate the article
 def generate_article(prompt_input, llm_model):
