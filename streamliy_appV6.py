@@ -17,11 +17,6 @@ def generate_llama2_response(prompt_input, temperature, top_p, max_length):
         output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5',
                                input={'prompt': f'{prompt_input} Assistant: ',
                                       'temperature': temperature, 'top_p': top_p, 'max_length': max_length, 'repetition_penalty': 1})
-def generate_llama2_response(prompt_input, temperature, top_p, max_length):
-    try:
-        output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5',
-                               input={'prompt': f'{prompt_input} Assistant: ',
-                                      'temperature': temperature, 'top_p': top_p, 'max_length': max_length, 'repetition_penalty': 1})
         for item in output:
             text = item.get('text', '')
             break  # Stop after the first iteration
@@ -45,7 +40,7 @@ def main():
     image_input = st.text_input("Please enter the topic for the image you want to fetch!")
     temperature = st.slider('Temperature', min_value=0.0, max_value=1.0, value=0.7)
     top_p = st.slider('Top P', min_value=0.0, max_value=1.0, value=0.9)
-    max_length = st.slider('Max Length', min_value=50, max_value=500, value=500)
+    max_length = st.slider('Max Length', min_value=50, max_value=800, value=800)
 
     if st.session_state.generation_count >= 5:
         st.warning('You have reached your free daily limit. Please upgrade for full functionality.')
