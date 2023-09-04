@@ -45,12 +45,7 @@ def main():
 
     if len(user_input) > 0 and len(image_input) > 0:
         col1, col2, col3 = st.columns([1,2,1])
-        
         with col1:
-            st.subheader("Generated Picture")
-            # Code for generating and displaying the picture goes here
-            
-        with col2:
             st.subheader("Generated Content by Llama 2")
             prompt_template = f"You are a digital marketing and SEO expert and your task is to write an article on the given topic: {user_input}. The article must be under 800 words."
             
@@ -58,7 +53,7 @@ def main():
                 result = generate_llama2_response(prompt_template, temperature, top_p, max_length)
                 
                 if result:
-                    st.subheader("Article")
+                    st.info("Your article has been been generated successfully!")
                     st.write(result)
                     st.session_state.generation_count += 1
                     doc_buffer = create_word_docx(user_input, result)
