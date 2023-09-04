@@ -17,7 +17,7 @@ def generate_llama2_response(prompt_input, temperature, top_p, max_length):
         output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5',
                                input={'prompt': f'{prompt_input} Assistant: ',
                                       'temperature': temperature, 'top_p': top_p, 'max_length': max_length, 'repetition_penalty': 1})
-       def generate_llama2_response(prompt_input, temperature, top_p, max_length):
+def generate_llama2_response(prompt_input, temperature, top_p, max_length):
     try:
         output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5',
                                input={'prompt': f'{prompt_input} Assistant: ',
