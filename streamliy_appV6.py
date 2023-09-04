@@ -22,29 +22,10 @@ def generate_llama2_response(prompt_input, temperature, top_p, max_length):
         st.error(f"An error occurred while generating the article: {e}")
         return None
 
-def get_src_original_url(query):
-    url = 'https://api.pexels.com/v1/search'
-    headers = {
-        'Authorization': st.secrets["PEXELS_API_KEY"],
-    }
-    params = {
-        'query': query,
-        'per_page': 1,
-    }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        photos = data.get('photos', [])
-        if photos:
-            return photos[0]['src']['original']
-    return None
-
-def create_word_docx(user_input, paragraph, image_path=None):
+def create_word_docx(user_input, paragraph):
     doc = Document()
     doc.add_heading(user_input, level=1)
     doc.add_paragraph(paragraph)
-    if image_path:
-        doc.add_picture(image_path, width=Inches(4))
     doc_buffer = io.BytesIO()
     doc.save(doc_buffer)
     doc_buffer.seek(0)
@@ -64,7 +45,12 @@ def main():
 
     if len(user_input) > 0 and len(image_input) > 0:
         col1, col2, col3 = st.columns([1,2,1])
+        
         with col1:
+            st.subheader("Generated Picture")
+            # Code for generating and displaying the picture goes here
+            
+        with col2:
             st.subheader("Generated Content by Llama 2")
             prompt_template = f"You are a digital marketing and SEO expert and your task is to write an article on the given topic: {user_input}. The article must be under 800 words."
             
@@ -72,34 +58,21 @@ def main():
                 result = generate_llama2_response(prompt_template, temperature, top_p, max_length)
                 
                 if result:
-                    st.info("Your article has been been generated successfully!")
+                    st.subheader("Article")
                     st.write(result)
                     st.session_state.generation_count += 1
+                    doc_buffer = create_word_docx(user_input, result)
+                    st.download_button(
+                        label='Download Word Document',
+                        data=doc_buffer,
+                        file_name='document.docx', 
+                        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    )
                 else:
                     st.error("Your article couldn't be generated or is empty!")
 
             except Exception as e:
                 st.error(f"An error occurred while generating the article: {e}")
-
-        with col2:
-            st.subheader("Fetched Image")
-            image_url = get_src_original_url(image_input)
-            if image_url:
-                image_path = "temp_image.jpg"
-                img_data = requests.get(image_url).content
-                with open(image_path, 'wb') as handler:
-                    handler.write(img_data)
-                st.image(image_path)
-                
-                doc_buffer = create_word_docx(user_input, result, image_path)
-                st.download_button(
-                    label='Download Word Document',
-                    data=doc_buffer,
-                    file_name='document.docx', 
-                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                )
-            else:
-                st.error("Couldn't fetch the image for the given topic.")
 
 if __name__ == "__main__":
     main()
