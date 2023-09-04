@@ -12,6 +12,15 @@ if 'messages' not in st.session_state:
 if 'generation_count' not in st.session_state:
     st.session_state.generation_count = 0
 
+def fetch_image_from_pexels(query):
+    pexels_api_key = st.secrets["PEXELS_API_KEY"]
+    url = f"https://api.pexels.com/v1/search?query={query}&per_page=1&page=1"
+    headers = {"Authorization": pexels_api_key}
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    image_url = data['photos'][0]['src']['medium']
+    return image_url
+
 def generate_llama2_response(prompt_input, temperature, top_p, max_length):
     try:
         output = replicate.run('a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5',
@@ -45,7 +54,13 @@ def main():
 
     if len(user_input) > 0 and len(image_input) > 0:
         col1, col2, col3 = st.columns([1,2,1])
+        
         with col1:
+            st.subheader("Generated Image")
+            image_url = fetch_image_from_pexels(image_input)
+            st.image(image_url, caption=image_input, use_column_width=True)
+        
+        with col2:
             st.subheader("Generated Content by Llama 2")
             prompt_template = f"You are a digital marketing and SEO expert and your task is to write an article on the given topic: {user_input}. The article must be under 800 words."
             
